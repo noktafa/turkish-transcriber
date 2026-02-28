@@ -1,0 +1,59 @@
+name: Test Release on Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Download release zip
+        run: |
+          gh release download v1.0.0 --repo noktafa/turkish-transcriber --pattern "transcriber.zip" --dir .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract zip
+        run: Expand-Archive -Path transcriber.zip -DestinationPath transcriber
+
+      - name: Verify files exist
+        run: |
+          Write-Host "=== Checking exe ==="
+          Test-Path transcriber\transcriber.exe
+          Write-Host "=== Checking bundled model ==="
+          Test-Path transcriber\model\model.bin
+          Write-Host "=== Checking VC++ DLLs ==="
+          Test-Path transcriber\_internal\msvcp140.dll
+          Test-Path transcriber\_internal\vcruntime140.dll
+          Write-Host "=== Listing top-level ==="
+          Get-ChildItem transcriber\ | Format-Table Name, Length
+
+      - name: Run exe with --help
+        run: |
+          .\transcriber\transcriber.exe --help
+
+      - name: Generate test audio and transcribe
+        run: |
+          pip install pydub numpy
+          python -c "
+          import numpy as np
+          import wave, os
+          sr = 16000
+          duration = 3
+          t = np.linspace(0, duration, sr * duration, dtype=np.float32)
+          audio = (np.sin(2 * np.pi * 440 * t) * 32767).astype(np.int16)
+          with wave.open('test.wav', 'w') as w:
+              w.setnchannels(1)
+              w.setsampwidth(2)
+              w.setframerate(sr)
+              w.writeframes(audio.tobytes())
+          print('Created test.wav')
+          "
+          .\transcriber\transcriber.exe test.wav
+          if (Test-Path "test_transcript.txt") {
+            Write-Host "=== Transcript created ==="
+            Get-Content test_transcript.txt
+          } else {
+            Write-Host "ERROR: No transcript file created"
+            exit 1
+          }
