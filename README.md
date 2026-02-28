@@ -1,6 +1,12 @@
-# Turkish Audio Transcriber
+<p align="center">
+  <img src="logo.svg" alt="Turkish Transcriber" width="200">
+</p>
 
-Offline Turkish speech-to-text transcriber powered by [whisper.cpp](https://github.com/ggerganov/whisper.cpp) via [whisper-rs](https://github.com/tazz4843/whisper-rs). Native Rust binary with zero Python dependencies.
+<h1 align="center">Turkish Audio Transcriber</h1>
+
+<p align="center">
+  Offline Turkish speech-to-text transcriber powered by <a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a> via <a href="https://github.com/tazz4843/whisper-rs">whisper-rs</a>. Native Rust binary with zero Python dependencies.
+</p>
 
 Accepts MP3, WAV, M4A, OGG, FLAC audio files. Outputs a UTF-8 text file with full transcript and timestamped segments.
 
