@@ -1,0 +1,55 @@
+[package]
+name = "turkish-transcriber"
+version = "1.0.0"
+edition = "2021"
+description = "Offline Turkish speech-to-text transcriber powered by Whisper (whisper.cpp)"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/noktafa/turkish-transcriber"
+
+[dependencies]
+# Whisper inference via whisper.cpp
+whisper-rs = "0.13"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# Native file dialog (cross-platform)
+rfd = "0.15"
+
+# Audio decoding (MP3, WAV, FLAC, OGG/Vorbis, AAC/M4A)
+symphonia = { version = "0.5", features = [
+    "mp3", "flac", "pcm", "vorbis", "aac",
+    "isomp4", "ogg", "wav", "adpcm", "alac",
+] }
+
+# HTTP client for model download
+reqwest = { version = "0.12", features = ["blocking"] }
+
+# Progress bar for downloads
+indicatif = "0.17"
+
+# Cross-platform home/cache directories
+dirs = "6"
+
+# Ergonomic error handling
+anyhow = "1"
+
+# Typed error enums
+thiserror = "2"
+
+# Structured logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2"
+
+[features]
+default = []
+cuda = ["whisper-rs/cuda"]
+metal = ["whisper-rs/metal"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
