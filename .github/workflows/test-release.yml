@@ -14,7 +14,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract zip
-        run: Expand-Archive -Path transcriber.zip -DestinationPath transcriber
+        run: Expand-Archive -Path transcriber.zip -DestinationPath .
 
       - name: Verify files exist
         run: |
@@ -29,26 +29,12 @@ jobs:
           Get-ChildItem transcriber\ | Format-Table Name, Length
 
       - name: Run exe with --help
-        run: |
-          .\transcriber\transcriber.exe --help
+        run: .\transcriber\transcriber.exe --help
 
       - name: Generate test audio and transcribe
         run: |
-          pip install pydub numpy
-          python -c "
-          import numpy as np
-          import wave, os
-          sr = 16000
-          duration = 3
-          t = np.linspace(0, duration, sr * duration, dtype=np.float32)
-          audio = (np.sin(2 * np.pi * 440 * t) * 32767).astype(np.int16)
-          with wave.open('test.wav', 'w') as w:
-              w.setnchannels(1)
-              w.setsampwidth(2)
-              w.setframerate(sr)
-              w.writeframes(audio.tobytes())
-          print('Created test.wav')
-          "
+          pip install numpy
+          python -c "import numpy as np; import wave; sr=16000; d=3; t=np.linspace(0,d,sr*d,dtype=np.float32); a=(np.sin(2*np.pi*440*t)*32767).astype(np.int16); w=wave.open('test.wav','w'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(a.tobytes()); w.close(); print('Created test.wav')"
           .\transcriber\transcriber.exe test.wav
           if (Test-Path "test_transcript.txt") {
             Write-Host "=== Transcript created ==="
