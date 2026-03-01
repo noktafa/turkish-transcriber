@@ -13,7 +13,7 @@ use crate::model;
 struct Segment {
     start: f64,
     end: f64,
-    text: String,
+    pub(crate) text: String,
 }
 
 /// Run the full transcription pipeline and write the output file.
@@ -66,7 +66,7 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
     };
 
     // ── Transcribe ───────────────────────────────────────────────────
-    let (segments, transcribe_secs) = {
+    let (mut segments, transcribe_secs) = {
         let _span = info_span!("transcribe").entered();
         info!("Transcribing...");
         let t0 = Instant::now();
@@ -165,6 +165,15 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
 
         (segments, elapsed)
     };
+
+    // ── Post-process Turkish text ────────────────────────────────────
+    {
+        let _span = info_span!("postprocess").entered();
+        for seg in &mut segments {
+            seg.text = crate::postprocess::process(&seg.text);
+        }
+        info!(segments = segments.len(), "Post-processing complete");
+    }
 
     // ── Write output ─────────────────────────────────────────────────
     {

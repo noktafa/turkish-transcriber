@@ -33,6 +33,9 @@ pub enum AudioError {
 
     #[error("Audio too long ({hours:.1}h) — maximum is 4 hours")]
     TooLong { hours: f64 },
+
+    #[error("Path is not a file: {path}")]
+    NotAFile { path: String },
 }
 
 // ── Model errors ─────────────────────────────────────────────────────
@@ -146,9 +149,9 @@ impl ExitCode {
         for cause in err.chain() {
             if let Some(e) = cause.downcast_ref::<AudioError>() {
                 return match e {
-                    AudioError::FileOpen { .. } | AudioError::UnsupportedFormat => {
-                        Self::AUDIO_INPUT
-                    }
+                    AudioError::FileOpen { .. }
+                    | AudioError::UnsupportedFormat
+                    | AudioError::NotAFile { .. } => Self::AUDIO_INPUT,
                     AudioError::NoTrack
                     | AudioError::UnsupportedCodec
                     | AudioError::DecodeError(_) => Self::AUDIO_DECODE,

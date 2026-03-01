@@ -2,15 +2,16 @@ mod audio;
 mod errors;
 mod logging;
 mod model;
+mod postprocess;
 mod transcribe;
 
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use tracing::{debug, error, info};
 
-use errors::ExitCode;
+use errors::{AudioError, ExitCode};
 use logging::Verbosity;
 
 /// Transcribe Turkish audio to text using Whisper.
@@ -95,11 +96,16 @@ fn run_app(cli: Cli) -> Result<()> {
         },
     };
 
-    let audio_path = std::fs::canonicalize(&audio_path)
-        .with_context(|| format!("File not found: {}", audio_path.display()))?;
+    let audio_path = std::fs::canonicalize(&audio_path).map_err(|e| AudioError::FileOpen {
+        path: audio_path.display().to_string(),
+        source: e,
+    })?;
 
     if !audio_path.is_file() {
-        anyhow::bail!("Not a file: {}", audio_path.display());
+        return Err(AudioError::NotAFile {
+            path: audio_path.display().to_string(),
+        }
+        .into());
     }
 
     let output_path = cli.output.unwrap_or_else(|| {
