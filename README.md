@@ -156,3 +156,34 @@ model/
 ## License
 
 MIT
+
+---
+
+<p align="center"><i>
+
+> Ervah-ı ezelde levh-i kalemde<br>
+> Benim bahtım kara yazılmış meğer<br>
+> Gönül perişandır devr-i alemde<br>
+> Bir günüm şadlıksız geçiyor meğer
+>
+> Gönül gülşeninde har bitti bugün<br>
+> Bülbülün figanı göklere erdi<br>
+> Felek sillesini vurdu başıma<br>
+> Beni bir onulmaz derde düşürdü
+>
+> Sümmani'yim ey dil gönül perişan<br>
+> Gözlerim yollarda kalmışım hayran<br>
+> Aradım derdime bulmadım derman<br>
+> Tabipler yaramı azdırır meğer
+>
+> — **Aşık Sümmani**
+
+</i></p>
+
+<p align="center">
+<sub>
+Bülbülün figanı göklere erişir ama yazıya dökülmezse kaybolur.
+Bu araç, Türkçe sözün — ister bir ozanın türküsü, ister bir ananın ninnisi olsun — sessizliğe gömülmemesi için yazıldı.
+Her ses bir iz bırakmalı.
+</sub>
+</p>
