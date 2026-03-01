@@ -5,58 +5,72 @@
 <h1 align="center">Turkish Audio Transcriber</h1>
 
 <p align="center">
-  Offline Turkish speech-to-text transcriber powered by <a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a> via <a href="https://github.com/tazz4843/whisper-rs">whisper-rs</a>. Native Rust binary with zero Python dependencies.
+  Offline Turkish speech-to-text transcriber powered by <a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a>.<br>
+  Single executable. No internet required. No Python. No ffmpeg.
 </p>
 
-Accepts MP3, WAV, M4A, OGG, FLAC audio files. Outputs a UTF-8 text file with full transcript and timestamped segments.
+<p align="center">
+  <a href="https://github.com/noktafa/turkish-transcriber/releases/latest"><strong>Download latest release</strong></a>
+</p>
 
-## Features
+---
 
-- **Fully offline** — no API keys, no internet after first model download (or use the bundled release)
-- **Turkish language optimized** — language forced to `tr` for best accuracy
-- **Timestamped output** — each segment includes `[MM:SS -> MM:SS]` timestamps
-- **Beam search** — beam size 5 for accurate decoding
-- **File picker GUI** — double-click the exe to open a native file selection dialog
-- **CLI support** — pass file path and options from the command line
-- **Fast** — native compiled binary, multi-threaded inference, no interpreter overhead
-- **Small binary** — single executable, no runtime dependencies
-- **Optional GPU** — build with `--features cuda` or `--features metal` for GPU acceleration
+## Quick Start
 
-## Usage
+1. **Download** the latest `.zip` from [Releases](https://github.com/noktafa/turkish-transcriber/releases/latest)
+2. **Extract** the zip anywhere on your computer
+3. **Double-click** `turkish-transcriber.exe` — a file picker opens
+4. **Select** your audio file (MP3, WAV, M4A, OGG, FLAC)
+5. **Done** — the transcript is saved as `<filename>_transcript.txt` next to your audio file
 
-### Double-click
-Run `transcriber.exe` — a file picker opens. Select your audio file. The transcript is saved as `<filename>_transcript.txt` next to the original file.
+That's it. No installation, no setup, no dependencies.
 
-### Command line
+> **First run:** If you don't have a bundled model, the transcriber will automatically download the Whisper medium model (~1.5 GB) on first use. After that, everything works offline.
+
+## Command Line
+
 ```
-transcriber recording.mp3
-transcriber recording.mp3 --model large-v3
-transcriber recording.mp3 --output result.txt
+turkish-transcriber recording.mp3
+turkish-transcriber recording.mp3 --model large-v3
+turkish-transcriber recording.mp3 --output result.txt
+turkish-transcriber recording.mp3 --verbose
 ```
 
-## Options
+### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--model`, `-m` | `medium` | Whisper model size (see table below) |
 | `--output`, `-o` | `<input>_transcript.txt` | Output file path |
-| `--verbose` | off | Show debug-level output on console |
+| `--verbose` | off | Show detailed debug output on console |
 | `--quiet` | off | Suppress all output except errors |
-| `--log-file` | `~/.cache/whisper-models/logs/transcriber.log` | Custom log file path |
+| `--log-file` | auto | Custom log file path |
 
-### Model sizes
+## Features
 
-| Model | Download | Speed | Accuracy |
-|-------|----------|-------|----------|
-| `tiny` | ~75 MB | Fastest | Basic |
-| `base` | ~150 MB | Fast | OK |
-| `small` | ~500 MB | Moderate | Good |
-| **`medium`** | **~1.5 GB** | **Default** | **Recommended** |
-| `large-v3` | ~3 GB | Slowest | Best |
+- **Fully offline** — no API keys, no internet after first model download
+- **Turkish optimized** — language forced to `tr` for best accuracy
+- **Timestamped output** — each segment includes `[MM:SS -> MM:SS]` timestamps
+- **Beam search decoding** — beam size 5 for accurate results
+- **File picker GUI** — double-click to open a native file selection dialog
+- **Multi-threaded** — uses all available CPU cores automatically
+- **Structured logging** — detailed log file for debugging at `~/.cache/whisper-models/logs/`
+- **Retry logic** — model downloads retry 3 times with exponential backoff
+- **Typed exit codes** — every failure has a specific exit code for scripting
 
-Models use the GGML format from [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) on HuggingFace.
+## Model Sizes
 
-## Output format
+| Model | Size | Speed | Accuracy | Use case |
+|-------|------|-------|----------|----------|
+| `tiny` | ~75 MB | Fastest | Basic | Quick drafts, testing |
+| `base` | ~150 MB | Fast | OK | Short clips |
+| `small` | ~500 MB | Moderate | Good | General use |
+| **`medium`** | **~1.5 GB** | **Balanced** | **Recommended** | **Best quality/speed tradeoff** |
+| `large-v3` | ~3 GB | Slowest | Best | Maximum accuracy |
+
+Models are downloaded automatically from [HuggingFace](https://huggingface.co/ggerganov/whisper.cpp) on first use and cached locally.
+
+## Output Format
 
 ```
 === TRANSCRIPT (Turkish) ===
@@ -73,13 +87,43 @@ Full transcript text here...
 [00:07 -> 00:12]  Second segment text...
 ```
 
-## Building from source
+## Supported Audio Formats
+
+| Format | Extensions |
+|--------|-----------|
+| MP3 | `.mp3` |
+| WAV | `.wav` |
+| FLAC | `.flac` |
+| OGG/Vorbis | `.ogg` |
+| AAC/M4A | `.m4a` |
+
+All formats are decoded natively — no ffmpeg required.
+
+## Exit Codes
+
+For scripting and CI/CD integration:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 10 | Audio input error (file not found, unsupported format) |
+| 11 | Audio decode error (bad codec, corrupt file) |
+| 12 | Audio validation error (empty, too short, too long) |
+| 20 | Model not found |
+| 21 | Model download failed (network, timeout) |
+| 22 | Model integrity error (corrupt download) |
+| 23 | Model load error |
+| 30 | Transcription error |
+| 40 | Output write error |
+| 99 | Unknown error |
+
+## Building from Source
 
 ### Prerequisites
 
-- [Rust toolchain](https://rustup.rs/) (1.70+)
+- [Rust](https://rustup.rs/) 1.70+
 - C/C++ compiler (MSVC on Windows, gcc/clang on Linux/Mac)
-- CMake (for building whisper.cpp)
+- CMake 3.15+
 
 ### Build
 
@@ -87,9 +131,9 @@ Full transcript text here...
 cargo build --release
 ```
 
-Output: `target/release/transcriber` (or `transcriber.exe` on Windows)
+The binary will be at `target/release/turkish-transcriber` (`.exe` on Windows).
 
-### GPU acceleration (optional)
+### GPU Acceleration (optional)
 
 ```bash
 # NVIDIA CUDA
@@ -99,62 +143,15 @@ cargo build --release --features cuda
 cargo build --release --features metal
 ```
 
-### Bundled release
+### Bundled Model
 
-Place the GGML model file in a `model/` directory next to the executable:
+To distribute without requiring a download, place the model next to the executable:
+
 ```
-transcriber.exe
+turkish-transcriber.exe
 model/
   ggml-medium.bin
 ```
-
-The transcriber will use the bundled model instead of downloading.
-
-## Supported audio formats
-
-| Format | Extension | Engine |
-|--------|-----------|--------|
-| MP3 | `.mp3` | symphonia |
-| WAV | `.wav` | symphonia |
-| FLAC | `.flac` | symphonia |
-| OGG/Vorbis | `.ogg` | symphonia |
-| AAC/M4A | `.m4a` | symphonia |
-
-All formats are decoded natively in Rust — no ffmpeg required.
-
-## Logging
-
-A detailed log file is written to `~/.cache/whisper-models/logs/transcriber.log` (daily rolling) with full trace-level detail including timestamps and thread IDs. This is useful for post-mortem debugging.
-
-Use `--verbose` for debug output on the console, or `--quiet` to suppress everything except errors.
-
-## Exit codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 10 | Audio input error (file not found, unsupported format) |
-| 11 | Audio decode error (bad codec, corrupt file) |
-| 12 | Audio validation error (empty, too short, too long) |
-| 20 | Model not found (no cache dir) |
-| 21 | Model download failed (network error, timeout, HTTP error) |
-| 22 | Model integrity error (file too small / corrupt) |
-| 23 | Model load error (whisper.cpp failure) |
-| 30 | Transcription error |
-| 40 | Output write error |
-| 99 | Unknown error |
-
-These exit codes allow CI/CD pipelines and scripts to classify failures programmatically.
-
-## Performance vs Python version
-
-| Metric | Python (faster-whisper) | Rust (whisper.cpp) |
-|--------|------------------------|-------------------|
-| Startup time | ~3-5s (interpreter + imports) | ~0.1s |
-| Binary size | ~200 MB (PyInstaller bundle) | ~5-10 MB |
-| Memory overhead | ~100-200 MB (Python runtime) | Minimal |
-| Transcription speed | Fast (CTranslate2 int8) | Fast (whisper.cpp) |
-| Audio decoding | ffmpeg (external) | symphonia (native Rust) |
 
 ## License
 
