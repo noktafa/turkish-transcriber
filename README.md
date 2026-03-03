@@ -15,15 +15,29 @@
 
 ---
 
+## Install
+
+PowerShell'e yapıştır, enter'a bas, bitti:
+
+```powershell
+irm https://raw.githubusercontent.com/noktafa/turkish-transcriber/main/install.ps1 | iex
+```
+
+Terminali yeniden aç, artık her yerden kullanabilirsin:
+
+```
+turkish-transcriber kayit.mp3
+```
+
+> Ya da [Releases](https://github.com/noktafa/turkish-transcriber/releases/latest) sayfasından `.zip`'i indirip istediğin yere çıkar. Kurulum gerektirmez.
+
 ## Quick Start
 
-1. **Download** the latest `.zip` from [Releases](https://github.com/noktafa/turkish-transcriber/releases/latest)
-2. **Extract** the zip anywhere on your computer
-3. **Double-click** `turkish-transcriber.exe` — a file picker opens
-4. **Select** your audio file (MP3, WAV, M4A, OGG, FLAC)
-5. **Done** — the transcript is saved as `<filename>_transcript.txt` next to your audio file
+- **Double-click** `turkish-transcriber.exe` — dosya seçici açılır
+- **Ses dosyanı seç** (MP3, WAV, M4A, OGG, FLAC)
+- **Bitti** — transcript `<dosyaadı>_transcript.txt` olarak ses dosyasının yanına kaydedilir
 
-That's it. No installation, no setup, no dependencies.
+Kurulum yok, bağımlılık yok, internet yok.
 
 > **First run:** If you don't have a bundled model, the transcriber will automatically download the Whisper medium model (~1.5 GB) on first use. After that, everything works offline.
 
