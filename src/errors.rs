@@ -85,11 +85,11 @@ pub enum ModelError {
 
 #[derive(Debug, Error)]
 pub enum TranscriptionError {
-    #[error("Failed to create Whisper state")]
-    StateCreation,
+    #[error("Failed to create Whisper state: {0}")]
+    StateCreation(String),
 
-    #[error("Inference failed during transcription")]
-    InferenceFailed,
+    #[error("Inference failed during transcription: {0}")]
+    InferenceFailed(String),
 
     #[error("Failed to read transcription segments")]
     SegmentRead,

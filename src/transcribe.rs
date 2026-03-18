@@ -1,7 +1,9 @@
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use anyhow::Result;
+use indicatif::{ProgressBar, ProgressStyle};
 use tracing::{debug, info, info_span, warn};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
@@ -40,28 +42,41 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
         input = %audio_path.file_name().unwrap_or_default().to_string_lossy(),
         "Input file"
     );
+    eprintln!(
+        "[1/5] Model: whisper-{model_size} ({label})"
+    );
 
     // ── Load audio ───────────────────────────────────────────────────
     let samples = {
         let _span = info_span!("load_audio").entered();
+        let file_name = audio_path.file_name().unwrap_or_default().to_string_lossy();
+        eprintln!("[2/5] Decoding audio: {file_name}");
         let t0 = Instant::now();
         let s = audio::load_audio(audio_path)?;
-        info!(elapsed_secs = format!("{:.1}", t0.elapsed().as_secs_f64()), "Audio loaded");
+        let secs = t0.elapsed().as_secs_f64();
+        info!(elapsed_secs = format!("{secs:.1}"), "Audio loaded");
+        eprintln!("       Decoded in {secs:.1}s");
         s
     };
 
     let audio_duration_secs = samples.len() as f64 / 16_000.0;
+    let audio_mins = audio_duration_secs / 60.0;
+    eprintln!("       Audio length: {audio_mins:.1} minutes");
 
     // ── Load Whisper model ───────────────────────────────────────────
     let ctx = {
         let _span = info_span!("load_whisper").entered();
+        eprintln!("[3/5] Loading whisper-{model_size} model...");
         let t0 = Instant::now();
         let model_str = model_path
             .to_str()
             .ok_or_else(|| ModelError::InvalidPath(model_path.display().to_string()))?;
+        // GPU is auto-enabled when compiled with vulkan/cuda feature
         let c = WhisperContext::new_with_params(model_str, WhisperContextParameters::default())
             .map_err(|e| ModelError::LoadFailed(e.to_string()))?;
-        info!(elapsed_secs = format!("{:.1}", t0.elapsed().as_secs_f64()), "Whisper model loaded");
+        let secs = t0.elapsed().as_secs_f64();
+        info!(elapsed_secs = format!("{secs:.1}"), "Whisper model loaded");
+        eprintln!("       Model loaded in {secs:.1}s");
         c
     };
 
@@ -69,11 +84,23 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
     let (mut segments, transcribe_secs) = {
         let _span = info_span!("transcribe").entered();
         info!("Transcribing...");
+        eprintln!("[4/5] Transcribing ({audio_mins:.1} min of audio)...");
+
+        let pb = ProgressBar::new(100);
+        pb.set_style(
+            ProgressStyle::with_template(
+                "       [{bar:40.green/dim}] {pos}% | elapsed: {elapsed_precise} | ETA: {eta}",
+            )
+            .unwrap()
+            .progress_chars("=> "),
+        );
+        pb.set_position(0);
+
         let t0 = Instant::now();
 
         let mut state = ctx
             .create_state()
-            .map_err(|_| TranscriptionError::StateCreation)?;
+            .map_err(|e| TranscriptionError::StateCreation(e.to_string()))?;
 
         let mut params = FullParams::new(SamplingStrategy::BeamSearch {
             beam_size: 5,
@@ -93,31 +120,51 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
         params.set_n_threads(threads);
         debug!(threads, "Inference threads");
 
+        // Progress callback — drives the progress bar
+        let pb_cb = pb.clone();
+        params.set_progress_callback_safe(move |progress: i32| {
+            pb_cb.set_position(progress.max(0) as u64);
+        });
+
+        // Segment callback — show live segments as they arrive
+        let seg_count = Arc::new(Mutex::new(0u32));
+        let seg_count_cb = Arc::clone(&seg_count);
+        let pb_seg = pb.clone();
+        params.set_segment_callback_safe_lossy(move |data: whisper_rs::SegmentCallbackData| {
+            let mut count = seg_count_cb.lock().unwrap();
+            *count += 1;
+            let text = data.text.trim();
+            if !text.is_empty() {
+                let preview: String = text.chars().take(60).collect();
+                pb_seg.set_message(format!("[seg {count}] {preview}"));
+            }
+        });
+
         state
             .full(params, &samples)
-            .map_err(|_| TranscriptionError::InferenceFailed)?;
+            .map_err(|e| TranscriptionError::InferenceFailed(e.to_string()))?;
 
+        pb.finish_and_clear();
         let elapsed = t0.elapsed().as_secs_f64();
 
         // ── Collect segments ─────────────────────────────────────────
-        let n = state
-            .full_n_segments()
-            .map_err(|_| TranscriptionError::SegmentRead)?;
+        let n = state.full_n_segments();
 
         let mut segments: Vec<Segment> = Vec::with_capacity(n as usize);
         let mut skipped = 0u32;
         let mut total_chars: usize = 0;
 
         for i in 0..n {
-            let text = state
-                .full_get_segment_text(i)
-                .map_err(|_| TranscriptionError::SegmentRead)?;
-            let t0 = state
-                .full_get_segment_t0(i)
-                .map_err(|_| TranscriptionError::SegmentRead)?;
-            let t1 = state
-                .full_get_segment_t1(i)
-                .map_err(|_| TranscriptionError::SegmentRead)?;
+            let seg = match state.get_segment(i) {
+                Some(s) => s,
+                None => {
+                    skipped += 1;
+                    continue;
+                }
+            };
+
+            let t0 = seg.start_timestamp();
+            let t1 = seg.end_timestamp();
 
             // Validate timestamps
             if t0 < 0 || t1 < 0 {
@@ -131,6 +178,13 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
                 continue;
             }
 
+            let text = match seg.to_str_lossy() {
+                Ok(t) => t,
+                Err(_) => {
+                    skipped += 1;
+                    continue;
+                }
+            };
             let trimmed = text.trim().to_string();
             if trimmed.is_empty() {
                 debug!(segment = i, "Empty text — skipping segment");
@@ -162,6 +216,11 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
             total_chars,
             "Transcription complete"
         );
+        eprintln!(
+            "       Done in {elapsed:.1}s ({realtime_factor:.2}x realtime) — {} segments, {} chars",
+            segments.len(),
+            total_chars,
+        );
 
         (segments, elapsed)
     };
@@ -184,6 +243,11 @@ pub fn run(audio_path: &Path, model_size: &str, output_path: &Path) -> Result<()
 
     let total_elapsed = pipeline_start.elapsed().as_secs_f64();
     info!(total_secs = format!("{total_elapsed:.1}"), "Pipeline complete");
+    eprintln!(
+        "[5/5] Saved to: {}",
+        output_path.display()
+    );
+    eprintln!("       Total time: {total_elapsed:.1}s");
 
     Ok(())
 }

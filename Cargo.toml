@@ -9,7 +9,7 @@ repository = "https://github.com/noktafa/turkish-transcriber"
 
 [dependencies]
 # Whisper inference via whisper.cpp
-whisper-rs = "0.13"
+whisper-rs = "0.16"
 
 # CLI argument parsing
 clap = { version = "4", features = ["derive"] }
@@ -47,6 +47,7 @@ tracing-appender = "0.2"
 default = []
 cuda = ["whisper-rs/cuda"]
 metal = ["whisper-rs/metal"]
+vulkan = ["whisper-rs/vulkan"]
 
 [profile.release]
 opt-level = 3
